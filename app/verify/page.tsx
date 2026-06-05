@@ -4,13 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/AuthProvider';
-import { Phone, Mail, Shield, ArrowRight, BadgeCheck, Lock } from 'lucide-react';
+import { Phone, Mail, Shield, ArrowRight, BadgeCheck, Lock, Clock } from 'lucide-react';
+
+// Set to true when you configure SMS in Supabase
+const SMS_CONFIGURED = false;
 
 export default function VerifyPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneCode, setPhoneCode] = useState('');
+  const [phoneStep, setPhoneStep] = useState<'input' | 'code'>('input');
+  const [phoneError, setPhoneError] = useState('');
   const [step, setStep] = useState<'options' | 'phone' | 'email'>('options');
 
   const handleEmailVerify = async () => {
@@ -23,8 +29,72 @@ export default function VerifyPage() {
     setLoading(false);
   };
 
-  const handlePhoneVerify = async () => {
+  const handlePhoneVerify = () => {
     setStep('phone');
+    setPhoneStep('input');
+    setPhoneNumber('');
+    setPhoneCode('');
+    setPhoneError('');
+  };
+
+  const handleSendPhoneCode = async () => {
+    setPhoneError('');
+
+    // Validate: must be exactly 10 digits
+    const digitsOnly = phoneNumber.replace(/\D/g, '');
+    if (digitsOnly.length !== 10) {
+      setPhoneError('Please enter a valid 10-digit U.S. phone number (e.g., 7025551234)');
+      return;
+    }
+
+    setLoading(true);
+
+    if (!SMS_CONFIGURED) {
+      setLoading(false);
+      return; // "Coming soon" UI handles this
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: `+1${digitsOnly}`,
+      });
+
+      if (error) throw error;
+
+      setPhoneStep('code');
+    } catch (err: any) {
+      setPhoneError(err.message || 'Failed to send code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyPhoneCode = async () => {
+    setPhoneError('');
+
+    if (phoneCode.length !== 6) {
+      setPhoneError('Please enter the 6-digit code');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const digitsOnly = phoneNumber.replace(/\D/g, '');
+      const { error } = await supabase.auth.verifyOtp({
+        phone: `+1${digitsOnly}`,
+        token: phoneCode,
+        type: 'sms',
+      });
+
+      if (error) throw error;
+
+      // Success — redirect to profile
+      router.push('/profile');
+    } catch (err: any) {
+      setPhoneError(err.message || 'Invalid code');
+      setLoading(false);
+    }
   };
 
   const handleGoogleVerify = async () => {
@@ -39,11 +109,6 @@ export default function VerifyPage() {
       provider: 'facebook',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
-  };
-
-  const handleTikTokVerify = async () => {
-    // TikTok OAuth would need custom setup
-    alert('TikTok verification coming soon');
   };
 
   if (step === 'email') {
@@ -64,28 +129,102 @@ export default function VerifyPage() {
   if (step === 'phone') {
     return (
       <div className="min-h-screen px-6 py-12">
-        <h1 className="font-serif text-2xl text-wf-ivory mb-4">Verify Phone</h1>
+        <button
+          onClick={() => setStep('options')}
+          className="text-gray-400 text-sm mb-4 hover:text-wf-ivory"
+        >
+          ← Back
+        </button>
+
+        <h1 className="font-serif text-2xl text-wf-ivory mb-2">Verify Phone</h1>
         <p className="text-gray-400 mb-8">
-          We'll send you a code to verify your number.
+          {SMS_CONFIGURED
+            ? "We'll send you a code to verify your number."
+            : "Phone verification is coming soon."}
         </p>
 
-        <div className="max-w-sm space-y-4">
-          <input
-            type="text"
-            placeholder="Enter 6-digit code"
-            maxLength={6}
-            className="wf-input text-center text-2xl tracking-[0.5em]"
-            value={phoneCode}
-            onChange={(e) => setPhoneCode(e.target.value)}
-          />
-          <button 
-            onClick={() => router.push('/home')} 
-            className="wf-btn-primary"
-            disabled={phoneCode.length < 6}
-          >
-            Verify
-          </button>
-        </div>
+        {!SMS_CONFIGURED ? (
+          <div className="max-w-sm">
+            <div className="wf-card flex items-center gap-4 border-wf-gold/20 bg-wf-gold/5">
+              <div className="w-12 h-12 bg-wf-gold/10 rounded-xl flex items-center justify-center">
+                <Clock size={24} className="text-wf-gold" />
+              </div>
+              <div>
+                <h3 className="text-wf-gold font-medium">Phone Verification</h3>
+                <p className="text-gray-500 text-sm">Coming soon — check back later.</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setStep('options')}
+              className="wf-btn-primary w-full mt-6"
+            >
+              Back to Options
+            </button>
+          </div>
+        ) : phoneStep === 'input' ? (
+          <div className="max-w-sm space-y-4">
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">Phone Number</label>
+              <input
+                type="tel"
+                placeholder="7025551234"
+                maxLength={10}
+                className="wf-input text-center text-lg tracking-wider"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+              />
+              <p className="text-gray-500 text-xs mt-1">Enter 10 digits, no spaces or dashes</p>
+            </div>
+
+            {phoneError && (
+              <p className="text-red-400 text-sm">{phoneError}</p>
+            )}
+
+            <button
+              onClick={handleSendPhoneCode}
+              disabled={loading || phoneNumber.length !== 10}
+              className="wf-btn-primary w-full"
+            >
+              {loading ? 'Sending...' : 'Send Code'}
+            </button>
+          </div>
+        ) : (
+          <div className="max-w-sm space-y-4">
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">
+                Code sent to {phoneNumber.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}
+              </label>
+              <input
+                type="text"
+                placeholder="000000"
+                maxLength={6}
+                className="wf-input text-center text-2xl tracking-[0.5em]"
+                value={phoneCode}
+                onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ''))}
+              />
+            </div>
+
+            {phoneError && (
+              <p className="text-red-400 text-sm">{phoneError}</p>
+            )}
+
+            <button
+              onClick={handleVerifyPhoneCode}
+              disabled={loading || phoneCode.length !== 6}
+              className="wf-btn-primary w-full"
+            >
+              {loading ? 'Verifying...' : 'Verify Code'}
+            </button>
+
+            <button
+              onClick={() => setPhoneStep('input')}
+              className="w-full text-gray-400 text-sm hover:text-wf-ivory"
+            >
+              Change phone number
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -105,7 +244,9 @@ export default function VerifyPage() {
           </div>
           <div className="flex-1">
             <h3 className="text-wf-ivory font-medium">Verify with Phone</h3>
-            <p className="text-gray-500 text-sm">We'll send you a code to verify your number.</p>
+            <p className="text-gray-500 text-sm">
+              {SMS_CONFIGURED ? "We'll send you a code." : "Coming soon"}
+            </p>
           </div>
           <ArrowRight size={18} className="text-gray-500" />
         </button>
@@ -123,8 +264,8 @@ export default function VerifyPage() {
             </svg>
           </div>
           <div className="flex-1">
-            <h3 className="text-wf-ivory font-medium">Verify with Social</h3>
-            <p className="text-gray-500 text-sm">Verify easily and securely using your social account.</p>
+            <h3 className="text-wf-ivory font-medium">Verify with Google</h3>
+            <p className="text-gray-500 text-sm">Fast and secure</p>
           </div>
           <ArrowRight size={18} className="text-gray-500" />
         </button>
@@ -140,22 +281,6 @@ export default function VerifyPage() {
           </div>
           <div className="flex-1">
             <h3 className="text-wf-ivory font-medium">Verify with Facebook</h3>
-            <p className="text-gray-500 text-sm">Fast and secure</p>
-          </div>
-          <ArrowRight size={18} className="text-gray-500" />
-        </button>
-
-        <button
-          onClick={handleTikTokVerify}
-          className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left"
-        >
-          <div className="w-12 h-12 bg-wf-gray-light rounded-xl flex items-center justify-center">
-            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="white">
-              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-wf-ivory font-medium">Verify with TikTok</h3>
             <p className="text-gray-500 text-sm">Fast and secure</p>
           </div>
           <ArrowRight size={18} className="text-gray-500" />
