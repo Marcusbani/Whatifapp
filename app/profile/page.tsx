@@ -172,8 +172,7 @@ function ProfileContent() {
         city: editForm.city.trim(),
         state: editForm.state.trim(),
         bio: editForm.bio.trim(),
-        
-      })
+         })
       .eq('id', user.id);
 
     setSaving(false);
@@ -230,7 +229,7 @@ function ProfileContent() {
     const providers = user.app_metadata?.providers || [];
     const currentProvider = user.app_metadata?.provider;
 
-    const socialProviders = ['google', 'facebook', 'instagram', 'tiktok'];
+    const socialProviders = ['google', 'facebook'];
     const hasSocial =
     (currentProvider ? socialProviders.includes(currentProvider) : false) ||
       providers.some((p: string) => socialProviders.includes(p));
