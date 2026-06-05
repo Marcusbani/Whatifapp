@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/AuthProvider';
@@ -8,7 +8,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import BottomNav from '@/components/BottomNav';
 import {
   Settings, Shield, LogOut, ChevronRight, BadgeCheck, Edit3, Lock,
-  HelpCircle, Trash2, X, AlertTriangle
+  HelpCircle, Trash2, X, AlertTriangle, Camera, User
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -39,6 +39,10 @@ function ProfileContent() {
   });
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Avatar upload state
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete modal state
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -94,6 +98,65 @@ function ProfileContent() {
     setLikeCount(likes || 0);
   };
 
+  // AVATAR UPLOAD
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate
+    if (!file.type.startsWith('image/')) {
+      setSaveMessage({ type: 'error', text: 'Please select an image file' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveMessage({ type: 'error', text: 'Image must be under 5MB' });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    setSaveMessage(null);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Save to users table
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      await fetchProfile();
+      setSaveMessage({ type: 'success', text: 'Profile photo updated!' });
+    } catch (err: any) {
+      setSaveMessage({ type: 'error', text: err.message || 'Failed to upload photo' });
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -134,7 +197,6 @@ function ProfileContent() {
     setDeleteMessage(null);
 
     try {
-      // Call server-side API to delete auth user and all data
       const res = await fetch('/api/delete-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -147,7 +209,6 @@ function ProfileContent() {
         throw new Error(result.error || 'Failed to delete account');
       }
 
-      // Sign out and redirect
       await signOut();
       router.push('/');
     } catch (err: any) {
@@ -160,6 +221,28 @@ function ProfileContent() {
     await signOut();
     router.push('/');
   };
+
+  // VERIFICATION CHECK
+  const getVerificationStatus = () => {
+    if (!user) return { isVerified: false, isEmailVerified: false, hasSocial: false };
+
+    const isEmailVerified = !!user.email_confirmed_at;
+    const providers = user.app_metadata?.providers || [];
+    const currentProvider = user.app_metadata?.provider;
+
+    const socialProviders = ['google', 'facebook', 'instagram', 'tiktok'];
+    const hasSocial =
+      socialProviders.includes(currentProvider) ||
+      providers.some((p: string) => socialProviders.includes(p));
+
+    return {
+      isVerified: isEmailVerified && hasSocial,
+      isEmailVerified,
+      hasSocial,
+    };
+  };
+
+  const verification = getVerificationStatus();
 
   if (!profile) return null;
 
@@ -175,34 +258,69 @@ function ProfileContent() {
       </header>
 
       <div className="px-4 py-6 space-y-6">
-        {/* Profile Header */}
+        {/* Profile Header with Avatar */}
         <div className="text-center">
-          <div className="w-24 h-24 bg-wf-gray-light rounded-full mx-auto mb-4 flex items-center justify-center border-2 border-wf-gold/30">
-            <span className="font-serif text-3xl text-wf-ivory">
-              {profile.first_name?.charAt(0)}{profile.last_initial}
-            </span>
+          {/* Avatar with upload */}
+          <div className="relative w-24 h-24 mx-auto mb-4">
+            <div
+              className={`w-24 h-24 rounded-full flex items-center justify-center border-2 border-wf-gold/30 overflow-hidden ${
+                profile.avatar_url ? '' : 'bg-wf-gray-light'
+              }`}
+            >
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="font-serif text-3xl text-wf-ivory">
+                  {profile.first_name?.charAt(0)}{profile.last_initial}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleAvatarClick}
+              disabled={uploadingAvatar}
+              className="absolute bottom-0 right-0 p-2 bg-wf-gold rounded-full shadow-lg hover:bg-wf-gold/90 transition-colors disabled:opacity-50"
+            >
+              {uploadingAvatar ? (
+                <div className="w-4 h-4 border-2 border-wf-black border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Camera size={14} className="text-wf-black" />
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+            />
           </div>
+
           <h2 className="font-serif text-2xl text-wf-ivory">
             {profile.first_name} {profile.last_initial}.
           </h2>
           <p className="text-gray-500 text-sm mt-1">{profile.city}, {profile.state}</p>
           <p className="text-gray-400 text-sm mt-2 max-w-xs mx-auto">{profile.bio || 'Entrepreneur. Coffee addict. Always open to new connections.'}</p>
 
-          {(() => {
-            const isEmailVerified = !!user?.email_confirmed_at;
-            const isPhoneVerified = !!user?.phone;
-            const isGoogleVerified = user?.app_metadata?.provider === 'google' || user?.user_metadata?.provider === 'google';
-            const isVerified = isEmailVerified && (isPhoneVerified || isGoogleVerified);
-
-            if (!isVerified) return null;
-
-            return (
-              <div className="flex items-center justify-center gap-1 mt-3">
-                <BadgeCheck size={16} className="text-blue-400" />
-                <span className="text-blue-400 text-xs font-medium">Verified Human</span>
-              </div>
-            );
-          })()}
+          {/* Verification Badge */}
+          {verification.isVerified ? (
+            <div className="flex items-center justify-center gap-1 mt-3">
+              <BadgeCheck size={16} className="text-blue-400" />
+              <span className="text-blue-400 text-xs font-medium">Verified Human</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-1 mt-3">
+              <User size={14} className="text-gray-500" />
+              <span className="text-gray-500 text-xs">
+                {!verification.isEmailVerified
+                  ? 'Verify email to start'
+                  : 'Connect Google, Facebook, Instagram, or TikTok for badge'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Stats */}
@@ -228,7 +346,10 @@ function ProfileContent() {
         {/* Menu Items */}
         <div className="space-y-2">
           <button
-            onClick={() => setEditOpen(true)}
+            onClick={() => {
+              setEditOpen(true);
+              setSaveMessage(null);
+            }}
             className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left"
           >
             <Edit3 size={18} className="text-gray-400" />
@@ -244,10 +365,10 @@ function ProfileContent() {
             <div className="flex-1">
               <span className="text-wf-ivory">Verification Badge</span>
               <p className="text-gray-500 text-xs">
-                {profile.email_confirmed_at
-                  ? (user?.phone || user?.app_metadata?.provider === 'google'
-                      ? 'Verified via Email'
-                      : 'Email confirmed — add phone or Google for badge')
+                {verification.isEmailVerified
+                  ? (verification.hasSocial
+                      ? 'Verified'
+                      : 'Connect a social account')
                   : 'Confirm email to start verification'}
               </p>
             </div>
@@ -399,7 +520,7 @@ function ProfileContent() {
             </div>
 
             <p className="text-gray-400 text-sm mb-4">
-              Are you sure? This will permanently delete your account, profile, posts, replies, and messages.
+              This action cannot be undone. This will permanently delete your account, profile, posts, replies, and messages.
             </p>
 
             <div className="mb-4">
