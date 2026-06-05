@@ -172,7 +172,7 @@ function ProfileContent() {
         city: editForm.city.trim(),
         state: editForm.state.trim(),
         bio: editForm.bio.trim(),
-        updated_at: new Date().toISOString(),
+        
       })
       .eq('id', user.id);
 
