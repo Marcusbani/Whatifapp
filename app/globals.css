@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-wf-black text-wf-ivory antialiased;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .wf-card {
+    @apply bg-wf-gray rounded-2xl p-5 border border-wf-gray-light;
+  }
+
+  .wf-input {
+    @apply w-full bg-wf-gray-light border border-wf-gray-light rounded-xl px-4 py-3 text-wf-ivory placeholder-gray-500 focus:outline-none focus:border-wf-gold transition-colors;
+  }
+
+  .wf-btn-primary {
+    @apply w-full bg-wf-gold text-wf-black font-semibold rounded-xl py-3.5 hover:bg-wf-gold-light transition-colors;
+  }
+
+  .wf-btn-secondary {
+    @apply w-full bg-wf-gray-light text-wf-ivory font-medium rounded-xl py-3.5 border border-wf-gray-light hover:border-wf-gold transition-colors;
+  }
+
+  .wf-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-wf-gold/10 text-wf-gold text-xs font-medium;
+  }
+}
