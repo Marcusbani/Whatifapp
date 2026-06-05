@@ -231,7 +231,7 @@ function ProfileContent() {
     const currentProvider = user.app_metadata?.provider;
 
     const socialProviders = ['google', 'facebook', 'instagram', 'tiktok'];
-    const has
+    const hasSocial =
     (currentProvider ? socialProviders.includes(currentProvider) : false) ||
       providers.some((p: string) => socialProviders.includes(p));
 
