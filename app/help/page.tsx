@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, HelpCircle, MessageSquare, Bug, FileText, ChevronDown, ChevronUp, Mail } from 'lucide-react';
+import { ArrowLeft, HelpCircle, MessageSquare, Bug, FileText, ChevronDown, ChevronUp, Mail, X } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
 const faqs = [
@@ -28,9 +28,37 @@ const faqs = [
   },
 ];
 
+const guidelines = [
+  {
+    title: 'Be Respectful',
+    text: 'Treat everyone with kindness. No harassment, hate speech, threats, or bullying of any kind.',
+  },
+  {
+    title: 'Stay Safe',
+    text: 'Never share personal information like your address, phone number, or financial details in public posts.',
+  },
+  {
+    title: 'No Fake Profiles',
+    text: 'Impersonation and catfishing are strictly prohibited. Use your real identity.',
+  },
+  {
+    title: 'Keep It Clean',
+    text: 'No nudity, sexually explicit content, or graphic violence. This is a community for genuine connections.',
+  },
+  {
+    title: 'No Spam or Scams',
+    text: 'Do not post promotional content, pyramid schemes, or attempt to defraud other users.',
+  },
+  {
+    title: 'Report Violations',
+    text: 'If you see something that breaks these rules, report it immediately. We review all reports within 24 hours.',
+  },
+];
+
 export default function HelpPage() {
   const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [showGuidelines, setShowGuidelines] = useState(false);
   const [contactForm, setContactForm] = useState({ subject: '', message: '' });
   const [sent, setSent] = useState(false);
 
@@ -56,7 +84,10 @@ export default function HelpPage() {
       <div className="px-4 py-6 space-y-6 max-w-lg mx-auto">
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3">
-          <button className="wf-card flex flex-col items-center gap-2 py-4 hover:border-wf-gold transition-colors">
+          <button 
+            onClick={() => setShowGuidelines(true)}
+            className="wf-card flex flex-col items-center gap-2 py-4 hover:border-wf-gold transition-colors"
+          >
             <FileText size={24} className="text-wf-gold" />
             <span className="text-wf-ivory text-sm font-medium">Guidelines</span>
           </button>
@@ -139,6 +170,40 @@ export default function HelpPage() {
           </a>
         </div>
       </div>
+
+      {/* Community Guidelines Modal */}
+      {showGuidelines && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+            onClick={() => setShowGuidelines(false)} 
+          />
+          <div className="relative bg-wf-black border border-wf-gray-light rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-wf-black/95 backdrop-blur-md border-b border-wf-gray-light px-4 py-3 flex items-center justify-between">
+              <h2 className="font-serif text-lg text-wf-ivory">Community Guidelines</h2>
+              <button 
+                onClick={() => setShowGuidelines(false)}
+                className="p-1 hover:bg-wf-gray rounded-lg"
+              >
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="px-4 py-4 space-y-4">
+              {guidelines.map((g, i) => (
+                <div key={i} className="space-y-1">
+                  <h3 className="text-wf-gold font-medium text-sm">{g.title}</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">{g.text}</p>
+                </div>
+              ))}
+              <div className="pt-2 border-t border-wf-gray-light">
+                <p className="text-gray-500 text-xs text-center">
+                  Violations may result in warnings, temporary suspension, or permanent account removal.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>
