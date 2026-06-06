@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Shield, MapPin, Users, Lock, BookOpen } from 'lucide-react';
 
 export default function LandingPage() {
@@ -6,14 +7,15 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
       {/* Logo */}
       <div className="mb-8">
-        <div className="w-24 h-24 bg-black rounded-3xl flex items-center justify-center border border-wf-gray-light shadow-2xl">
-          <div className="relative">
-            <span className="font-serif text-4xl text-wf-ivory tracking-tight">W</span>
-            <span className="font-serif text-4xl text-wf-ivory tracking-tight relative">
-              F
-              <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-wf-gold rounded-full"></span>
-            </span>
-          </div>
+        <div className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl overflow-hidden">
+          <Image 
+            src="/WIF LOGO.png" 
+            alt="What If? Logo" 
+            width={96} 
+            height={96} 
+            className="w-full h-full object-cover"
+            priority
+          />
         </div>
       </div>
 
