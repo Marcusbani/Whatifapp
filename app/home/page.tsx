@@ -21,7 +21,7 @@ export default function HomePage() {
 
 function HomeContent() {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedState, setSelectedState] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
@@ -49,6 +49,10 @@ function HomeContent() {
 
   const handleReply = (postId: string) => {
     window.location.href = `/messages?post=${postId}`;
+  };
+
+  const handleDelete = (postId: string) => {
+    setPosts(posts.filter(p => p.id !== postId));
   };
 
   return (
@@ -125,7 +129,7 @@ function HomeContent() {
             </div>
           ) : (
             posts.map((post) => (
-              <PostCard key={post.id} post={post} onReply={handleReply} />
+              <PostCard key={post.id} post={post} onReply={handleReply} onDelete={handleDelete} />
             ))
           )}
         </div>
