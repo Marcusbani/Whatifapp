@@ -29,7 +29,7 @@ export default function PrivacyPage() {
 function PrivacyContent() {
   const router = useRouter();
   const { user } = useAuth();
-  const [blockedUsers, setBlockedUsers] = useState<<BlockedUser[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBlocked, setShowBlocked] = useState(false);
   const [profileVisible, setProfileVisible] = useState(true);
