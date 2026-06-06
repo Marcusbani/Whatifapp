@@ -49,7 +49,7 @@ function PrivacyContent() {
       .eq('blocker_id', user?.id);
 
     // Supabase returns relations as arrays — flatten them
-    const flattened = (data || []).map((item: any) => ({
+    const flattened: BlockedUser[] = (data || []).map((item: any) => ({
       id: item.id,
       blocked_id: item.blocked_id,
       created_at: item.created_at,
