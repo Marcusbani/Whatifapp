@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/AuthProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import BottomNav from '@/components/BottomNav';
-import { ArrowLeft, Shield, Lock, Eye, EyeOff, UserX, AlertTriangle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Lock, Eye, EyeOff, UserX, AlertTriangle, ChevronRight } from 'lucide-react';
 
 interface BlockedUser {
   id: string;
@@ -48,7 +48,15 @@ function PrivacyContent() {
       `)
       .eq('blocker_id', user?.id);
 
-    setBlockedUsers(data || []);
+    // Supabase returns relations as arrays — flatten them
+    const flattened: BlockedUser[] = (data || []).map((item: any) => ({
+      id: item.id,
+      blocked_id: item.blocked_id,
+      created_at: item.created_at,
+      blocked_profile: item.blocked_profile?.[0] || null,
+    }));
+
+    setBlockedUsers(flattened);
     setLoading(false);
   };
 
@@ -113,7 +121,7 @@ function PrivacyContent() {
                 blockedUsers.map((block) => (
                   <div key={block.id} className="wf-card flex items-center justify-between">
                     <span className="text-wf-ivory">
-                      {block.blocked_profile?.first_name} {block.blocked_profile?.last_initial}.
+                      {block.blocked_profile?.first_name || 'Unknown'} {block.blocked_profile?.last_initial || ''}.
                     </span>
                     <button
                       onClick={() => unblockUser(block.id)}
