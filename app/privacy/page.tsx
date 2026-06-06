@@ -43,8 +43,6 @@ function PrivacyContent() {
   const [showBlocked, setShowBlocked] = useState(false);
   const [profileVisible, setProfileVisible] = useState(true);
   const [savingVisibility, setSavingVisibility] = useState(false);
-  
-  // Report Center
   const [showReports, setShowReports] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
@@ -156,11 +154,9 @@ function PrivacyContent() {
       </header>
 
       <div className="px-4 py-6 space-y-4">
-        {/* Privacy Settings */}
         <div className="space-y-2">
           <h2 className="text-gray-400 text-sm font-medium uppercase tracking-wider">Privacy</h2>
 
-          {/* Profile Visibility Toggle */}
           <div className="wf-card flex items-center justify-between">
             <div className="flex items-center gap-3">
               {profileVisible ? (
@@ -189,7 +185,6 @@ function PrivacyContent() {
           </div>
         </div>
 
-        {/* Safety Settings */}
         <div className="space-y-2">
           <h2 className="text-gray-400 text-sm font-medium uppercase tracking-wider">Safety</h2>
 
@@ -231,7 +226,6 @@ function PrivacyContent() {
             </div>
           )}
 
-          {/* Report Center - now clickable */}
           <button
             onClick={openReportCenter}
             className="wf-card w-full flex items-center gap-3 border-wf-gold/20 bg-wf-gold/5 hover:border-wf-gold/40 transition-colors text-left"
@@ -246,7 +240,6 @@ function PrivacyContent() {
         </div>
       </div>
 
-      {/* Report Center Modal */}
       {showReports && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div 
