@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/AuthProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import BottomNav from '@/components/BottomNav';
-import { ArrowLeft, Lock, Eye, EyeOff, UserX, AlertTriangle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, UserX, AlertTriangle, X, MessageSquare, Bug, Clock, CheckCircle } from 'lucide-react';
 
 interface BlockedUser {
   id: string;
@@ -16,6 +16,15 @@ interface BlockedUser {
     first_name: string;
     last_initial: string;
   } | null;
+}
+
+interface Report {
+  id: string;
+  subject: string;
+  description: string;
+  type: string;
+  status: string;
+  created_at: string;
 }
 
 export default function PrivacyPage() {
@@ -34,6 +43,11 @@ function PrivacyContent() {
   const [showBlocked, setShowBlocked] = useState(false);
   const [profileVisible, setProfileVisible] = useState(true);
   const [savingVisibility, setSavingVisibility] = useState(false);
+  
+  // Report Center
+  const [showReports, setShowReports] = useState(false);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -91,6 +105,43 @@ function PrivacyContent() {
   const unblockUser = async (blockId: string) => {
     await supabase.from('blocks').delete().eq('id', blockId);
     await fetchBlockedUsers();
+  };
+
+  const fetchReports = async () => {
+    if (!user) return;
+    setReportsLoading(true);
+    
+    const { data } = await supabase
+      .from('bug_reports')
+      .select('id, subject, description, type, status, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    setReports(data || []);
+    setReportsLoading(false);
+  };
+
+  const openReportCenter = () => {
+    setShowReports(true);
+    fetchReports();
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getStatusIcon = (status: string) => {
+    if (status === 'resolved') return <CheckCircle size={14} className="text-green-400" />;
+    return <Clock size={14} className="text-yellow-400" />;
+  };
+
+  const getStatusText = (status: string) => {
+    if (status === 'resolved') return 'Resolved';
+    return 'Open';
   };
 
   return (
@@ -180,15 +231,76 @@ function PrivacyContent() {
             </div>
           )}
 
-          <div className="wf-card flex items-center gap-3 border-wf-gold/20 bg-wf-gold/5">
+          {/* Report Center - now clickable */}
+          <button
+            onClick={openReportCenter}
+            className="wf-card w-full flex items-center gap-3 border-wf-gold/20 bg-wf-gold/5 hover:border-wf-gold/40 transition-colors text-left"
+          >
             <AlertTriangle size={18} className="text-wf-gold" />
-            <div>
+            <div className="flex-1">
               <span className="text-wf-gold font-medium">Report Center</span>
               <p className="text-gray-500 text-xs">View and manage your reports</p>
             </div>
-          </div>
+            <Eye size={16} className="text-gray-500" />
+          </button>
         </div>
       </div>
+
+      {/* Report Center Modal */}
+      {showReports && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+            onClick={() => setShowReports(false)} 
+          />
+          <div className="relative bg-wf-black border border-wf-gray-light rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-wf-black/95 backdrop-blur-md border-b border-wf-gray-light px-4 py-3 flex items-center justify-between">
+              <h2 className="font-serif text-lg text-wf-ivory">Your Reports</h2>
+              <button 
+                onClick={() => setShowReports(false)}
+                className="p-1 hover:bg-wf-gray rounded-lg"
+              >
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="px-4 py-4">
+              {reportsLoading ? (
+                <p className="text-gray-500 text-sm text-center py-8">Loading...</p>
+              ) : reports.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare size={32} className="text-gray-600 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">No reports submitted yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reports.map((report) => (
+                    <div key={report.id} className="wf-card space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {report.type === 'bug' ? (
+                            <Bug size={14} className="text-wf-gold" />
+                          ) : (
+                            <MessageSquare size={14} className="text-wf-gold" />
+                          )}
+                          <span className="text-wf-ivory text-sm font-medium">{report.subject}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs">
+                          {getStatusIcon(report.status)}
+                          <span className={report.status === 'resolved' ? 'text-green-400' : 'text-yellow-400'}>
+                            {getStatusText(report.status)}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-gray-400 text-sm leading-relaxed">{report.description}</p>
+                      <p className="text-gray-600 text-xs">{formatDate(report.created_at)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>
