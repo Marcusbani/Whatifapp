@@ -14,7 +14,7 @@
     className="wf-card flex flex-col items-center gap-2 py-4 hover:border-wf-gold transition-colors"
   >
     <Bug size={24} className="text-wf-gold" />
-    <span className="text-wf-ivory text-sm font-medium">Report Issue</span>
+    <span className="text-wf-ivory text-sm font-medium">Submit Report</span>
   </button>
 </div>
 
