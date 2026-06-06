@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, HelpCircle, MessageSquare, Bug, FileText, ChevronDown, ChevronUp, Mail, X } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/components/AuthProvider';
+import { ArrowLeft, HelpCircle, MessageSquare, Bug, FileText, ChevronDown, ChevronUp, Mail, X, Send } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
 const faqs = [
@@ -57,17 +59,70 @@ const guidelines = [
 
 export default function HelpPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showGuidelines, setShowGuidelines] = useState(false);
+  
+  // Bug report modal
+  const [showBugReport, setShowBugReport] = useState(false);
+  const [bugForm, setBugForm] = useState({ subject: '', description: '', email: '' });
+  const [bugSubmitting, setBugSubmitting] = useState(false);
+  const [bugSent, setBugSent] = useState(false);
+  
+  // Contact form
   const [contactForm, setContactForm] = useState({ subject: '', message: '' });
-  const [sent, setSent] = useState(false);
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactSent, setContactSent] = useState(false);
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleBugSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // For MVP, just show success. In production, send to Supabase or email API.
-    setSent(true);
-    setContactForm({ subject: '', message: '' });
-    setTimeout(() => setSent(false), 3000);
+    if (!bugForm.subject.trim() || !bugForm.description.trim()) return;
+    
+    setBugSubmitting(true);
+    
+    const { error } = await supabase.from('bug_reports').insert({
+      user_id: user?.id || null,
+      subject: bugForm.subject.trim(),
+      description: bugForm.description.trim(),
+      email: bugForm.email.trim() || null,
+      type: 'bug',
+      status: 'open',
+    });
+
+    setBugSubmitting(false);
+    
+    if (!error) {
+      setBugSent(true);
+      setBugForm({ subject: '', description: '', email: '' });
+      setTimeout(() => {
+        setBugSent(false);
+        setShowBugReport(false);
+      }, 2000);
+    }
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactForm.subject.trim() || !contactForm.message.trim()) return;
+    
+    setContactSubmitting(true);
+    
+    const { error } = await supabase.from('bug_reports').insert({
+      user_id: user?.id || null,
+      subject: contactForm.subject.trim(),
+      description: contactForm.message.trim(),
+      email: null,
+      type: 'contact',
+      status: 'open',
+    });
+
+    setContactSubmitting(false);
+    
+    if (!error) {
+      setContactSent(true);
+      setContactForm({ subject: '', message: '' });
+      setTimeout(() => setContactSent(false), 3000);
+    }
   };
 
   return (
@@ -91,7 +146,10 @@ export default function HelpPage() {
             <FileText size={24} className="text-wf-gold" />
             <span className="text-wf-ivory text-sm font-medium">Guidelines</span>
           </button>
-          <button className="wf-card flex flex-col items-center gap-2 py-4 hover:border-wf-gold transition-colors">
+          <button 
+            onClick={() => setShowBugReport(true)}
+            className="wf-card flex flex-col items-center gap-2 py-4 hover:border-wf-gold transition-colors"
+          >
             <Bug size={24} className="text-wf-gold" />
             <span className="text-wf-ivory text-sm font-medium">Report Bug</span>
           </button>
@@ -120,7 +178,7 @@ export default function HelpPage() {
         <div className="space-y-2">
           <h2 className="text-gray-400 text-sm font-medium uppercase tracking-wider">Contact Us</h2>
           <div className="wf-card">
-            {sent ? (
+            {contactSent ? (
               <div className="text-center py-4">
                 <MessageSquare size={32} className="text-green-400 mx-auto mb-2" />
                 <p className="text-green-400 font-medium">Message sent!</p>
@@ -150,9 +208,10 @@ export default function HelpPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-wf-gold text-wf-black font-semibold py-2.5 rounded-lg hover:bg-wf-gold/90"
+                  disabled={contactSubmitting}
+                  className="w-full bg-wf-gold text-wf-black font-semibold py-2.5 rounded-lg hover:bg-wf-gold/90 disabled:opacity-50"
                 >
-                  Send Message
+                  {contactSubmitting ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
             )}
@@ -200,6 +259,79 @@ export default function HelpPage() {
                   Violations may result in warnings, temporary suspension, or permanent account removal.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Bug Modal */}
+      {showBugReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+            onClick={() => setShowBugReport(false)} 
+          />
+          <div className="relative bg-wf-black border border-wf-gray-light rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-wf-black/95 backdrop-blur-md border-b border-wf-gray-light px-4 py-3 flex items-center justify-between">
+              <h2 className="font-serif text-lg text-wf-ivory">Report a Bug</h2>
+              <button 
+                onClick={() => setShowBugReport(false)}
+                className="p-1 hover:bg-wf-gray rounded-lg"
+              >
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="px-4 py-4">
+              {bugSent ? (
+                <div className="text-center py-8">
+                  <MessageSquare size={40} className="text-green-400 mx-auto mb-3" />
+                  <p className="text-green-400 font-medium text-lg">Bug report sent!</p>
+                  <p className="text-gray-500 text-sm mt-1">Thanks for helping us improve.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleBugSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Subject *</label>
+                    <input
+                      type="text"
+                      value={bugForm.subject}
+                      onChange={e => setBugForm({ ...bugForm, subject: e.target.value })}
+                      placeholder="What's the issue?"
+                      className="w-full bg-wf-gray-light border border-wf-gray rounded-lg px-3 py-2 text-wf-ivory placeholder-gray-600 focus:border-wf-gold focus:outline-none"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Description *</label>
+                    <textarea
+                      value={bugForm.description}
+                      onChange={e => setBugForm({ ...bugForm, description: e.target.value })}
+                      placeholder="Describe what happened and how to reproduce it..."
+                      className="w-full bg-wf-gray-light border border-wf-gray rounded-lg px-3 py-2 text-wf-ivory placeholder-gray-600 focus:border-wf-gold focus:outline-none resize-none"
+                      rows={4}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Email (optional)</label>
+                    <input
+                      type="email"
+                      value={bugForm.email}
+                      onChange={e => setBugForm({ ...bugForm, email: e.target.value })}
+                      placeholder="your@email.com"
+                      className="w-full bg-wf-gray-light border border-wf-gray rounded-lg px-3 py-2 text-wf-ivory placeholder-gray-600 focus:border-wf-gold focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={bugSubmitting}
+                    className="w-full bg-wf-gold text-wf-black font-semibold py-2.5 rounded-lg hover:bg-wf-gold/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Send size={16} />
+                    {bugSubmitting ? 'Submitting...' : 'Submit Bug Report'}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
