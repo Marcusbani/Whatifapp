@@ -21,7 +21,7 @@ export default function HomePage() {
 
 function HomeContent() {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<<Post[]>([]);
+  const [posts, setPosts] = useState([] as Post[]);
   const [loading, setLoading] = useState(true);
   const [selectedState, setSelectedState] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
