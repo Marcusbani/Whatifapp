@@ -107,7 +107,6 @@ function ProfileContent() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate
     if (!file.type.startsWith('image/')) {
       setSaveMessage({ type: 'error', text: 'Please select an image file' });
       return;
@@ -124,7 +123,6 @@ function ProfileContent() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, {
@@ -134,12 +132,10 @@ function ProfileContent() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
-      // Save to users table
       const { error: updateError } = await supabase
         .from('users')
         .update({ avatar_url: publicUrl })
@@ -172,7 +168,7 @@ function ProfileContent() {
         city: editForm.city.trim(),
         state: editForm.state.trim(),
         bio: editForm.bio.trim(),
-         })
+      })
       .eq('id', user.id);
 
     setSaving(false);
@@ -231,7 +227,7 @@ function ProfileContent() {
 
     const socialProviders = ['google', 'facebook'];
     const hasSocial =
-    (currentProvider ? socialProviders.includes(currentProvider) : false) ||
+      (currentProvider ? socialProviders.includes(currentProvider) : false) ||
       providers.some((p: string) => socialProviders.includes(p));
 
     return {
@@ -259,7 +255,6 @@ function ProfileContent() {
       <div className="px-4 py-6 space-y-6">
         {/* Profile Header with Avatar */}
         <div className="text-center">
-          {/* Avatar with upload */}
           <div className="relative w-24 h-24 mx-auto mb-4">
             <div
               className={`w-24 h-24 rounded-full flex items-center justify-center border-2 border-wf-gold/30 overflow-hidden ${
@@ -304,7 +299,6 @@ function ProfileContent() {
           <p className="text-gray-500 text-sm mt-1">{profile.city}, {profile.state}</p>
           <p className="text-gray-400 text-sm mt-2 max-w-xs mx-auto">{profile.bio || 'Entrepreneur. Coffee addict. Always open to new connections.'}</p>
 
-          {/* Verification Badge */}
           {verification.isVerified ? (
             <div className="flex items-center justify-center gap-1 mt-3">
               <BadgeCheck size={16} className="text-blue-400" />
@@ -374,19 +368,31 @@ function ProfileContent() {
             <ChevronRight size={16} className="text-gray-500" />
           </button>
 
-          <button className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left">
+          {/* ACCOUNT SETTINGS — NOW LINKED */}
+          <button
+            onClick={() => router.push('/settings')}
+            className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left"
+          >
             <Settings size={18} className="text-gray-400" />
             <span className="text-wf-ivory flex-1">Account Settings</span>
             <ChevronRight size={16} className="text-gray-500" />
           </button>
 
-          <button className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left">
+          {/* PRIVACY & SAFETY — NOW LINKED */}
+          <button
+            onClick={() => router.push('/privacy')}
+            className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left"
+          >
             <Lock size={18} className="text-gray-400" />
             <span className="text-wf-ivory flex-1">Privacy & Safety</span>
             <ChevronRight size={16} className="text-gray-500" />
           </button>
 
-          <button className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left">
+          {/* HELP & SUPPORT — NOW LINKED */}
+          <button
+            onClick={() => router.push('/help')}
+            className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left"
+          >
             <HelpCircle size={18} className="text-gray-400" />
             <span className="text-wf-ivory flex-1">Help & Support</span>
             <ChevronRight size={16} className="text-gray-500" />
