@@ -29,13 +29,42 @@ export default function PrivacyPage() {
 function PrivacyContent() {
   const router = useRouter();
   const { user } = useAuth();
-  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBlocked, setShowBlocked] = useState(false);
+  const [profileVisible, setProfileVisible] = useState(true);
+  const [savingVisibility, setSavingVisibility] = useState(false);
 
   useEffect(() => {
-    if (user) fetchBlockedUsers();
+    if (user) {
+      fetchBlockedUsers();
+      fetchProfileVisibility();
+    }
   }, [user]);
+
+  const fetchProfileVisibility = async () => {
+    const { data } = await supabase
+      .from('users')
+      .select('profile_visible')
+      .eq('id', user?.id)
+      .single();
+
+    if (data) setProfileVisible(data.profile_visible ?? true);
+  };
+
+  const toggleProfileVisibility = async () => {
+    if (!user) return;
+    setSavingVisibility(true);
+
+    const newValue = !profileVisible;
+    const { error } = await supabase
+      .from('users')
+      .update({ profile_visible: newValue })
+      .eq('id', user.id);
+
+    if (!error) setProfileVisible(newValue);
+    setSavingVisibility(false);
+  };
 
   const fetchBlockedUsers = async () => {
     const { data } = await supabase
@@ -48,7 +77,6 @@ function PrivacyContent() {
       `)
       .eq('blocker_id', user?.id);
 
-    // Supabase returns relations as arrays — flatten them
     const flattened: BlockedUser[] = (data || []).map((item: any) => ({
       id: item.id,
       blocked_id: item.blocked_id,
@@ -81,15 +109,32 @@ function PrivacyContent() {
         <div className="space-y-2">
           <h2 className="text-gray-400 text-sm font-medium uppercase tracking-wider">Privacy</h2>
 
+          {/* Profile Visibility Toggle */}
           <div className="wf-card flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Eye size={18} className="text-gray-400" />
+              {profileVisible ? (
+                <Eye size={18} className="text-wf-gold" />
+              ) : (
+                <EyeOff size={18} className="text-gray-500" />
+              )}
               <div>
                 <span className="text-wf-ivory">Profile Visibility</span>
-                <p className="text-gray-500 text-xs">Public — anyone can see your posts</p>
+                <p className="text-gray-500 text-xs">
+                  {profileVisible ? 'Public — anyone can see your profile' : 'Hidden — only initials shown to others'}
+                </p>
               </div>
             </div>
-            <span className="text-wf-gold text-xs font-medium">Public</span>
+            <button
+              onClick={toggleProfileVisibility}
+              disabled={savingVisibility}
+              className={`w-12 h-6 rounded-full transition-colors relative ${
+                profileVisible ? 'bg-wf-gold' : 'bg-wf-gray'
+              } ${savingVisibility ? 'opacity-50' : ''}`}
+            >
+              <div className={`w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform ${
+                profileVisible ? 'translate-x-6' : 'translate-x-0.5'
+              }`} />
+            </button>
           </div>
         </div>
 
@@ -142,20 +187,6 @@ function PrivacyContent() {
               <p className="text-gray-500 text-xs">View and manage your reports</p>
             </div>
           </div>
-        </div>
-
-        {/* Data */}
-        <div className="space-y-2">
-          <h2 className="text-gray-400 text-sm font-medium uppercase tracking-wider">Data</h2>
-
-          <button className="wf-card w-full flex items-center gap-3 hover:border-wf-gold transition-colors text-left">
-            <Lock size={18} className="text-gray-400" />
-            <div className="flex-1">
-              <span className="text-wf-ivory">Download My Data</span>
-              <p className="text-gray-500 text-xs">Get a copy of your account data</p>
-            </div>
-            <ChevronRight size={16} className="text-gray-500" />
-          </button>
         </div>
       </div>
 
