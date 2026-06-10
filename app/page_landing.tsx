@@ -58,9 +58,14 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <p className="mt-12 text-gray-600 text-xs text-center">
-        Not a dating app. A community for missed connections.
-      </p>
+      <div className="mt-12 text-center space-y-2">
+        <p className="text-gray-600 text-xs">
+          Not a dating app. A community for missed connections.
+        </p>
+        <a href="mailto:support@whatifcity.com" className="text-gray-500 text-xs hover:text-wf-gold transition-colors">
+          support@whatifcity.com
+        </a>
+      </div>
     </div>
   );
 }
