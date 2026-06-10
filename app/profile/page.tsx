@@ -8,7 +8,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import BottomNav from '@/components/BottomNav';
 import {
   Settings, Shield, LogOut, ChevronRight, BadgeCheck, Edit3, Lock,
-  HelpCircle, Trash2, X, AlertTriangle, Camera, User
+    HelpCircle, Trash2, X, AlertTriangle, Camera, User, FileText
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -385,7 +385,14 @@ function ProfileContent() {
             <span className="text-wf-ivory flex-1">Privacy & Safety</span>
             <ChevronRight size={16} className="text-gray-500" />
           </button>
-
+          <button
+            onClick={() => router.push('/terms')}
+            className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left"
+          >
+            <FileText size={18} className="text-gray-400" />
+            <span className="text-wf-ivory flex-1">Terms of Service</span>
+            <ChevronRight size={16} className="text-gray-500" />
+          </button>
           <button
             onClick={() => router.push('/help')}
             className="wf-card w-full flex items-center gap-4 hover:border-wf-gold transition-colors text-left"
