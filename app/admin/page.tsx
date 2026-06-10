@@ -5,10 +5,44 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/AuthProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Shield, Trash2, Eye, EyeOff, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import { Post, Report, SuccessStory } from '@/types';
+import { 
+  ArrowLeft, Users, FileText, Flag, Shield, 
+  Trash2, UserX, Eye, CheckCircle, Clock, AlertTriangle,
+  Search, Filter
+} from 'lucide-react';
 
-export default function AdminPage() {
+interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_initial: string;
+  created_at: string;
+  status: string;
+}
+
+interface Post {
+  id: string;
+  location_name: string;
+  city: string;
+  state: string;
+  description: string;
+  created_at: string;
+  user_id: string;
+  status: string;
+}
+
+interface Report {
+  id: string;
+  subject: string;
+  description: string;
+  type: string;
+  status: string;
+  created_at: string;
+  email: string | null;
+  user_id: string | null;
+}
+
+export default function AdminDashboard() {
   return (
     <ProtectedRoute>
       <AdminContent />
@@ -19,214 +53,250 @@ export default function AdminPage() {
 function AdminContent() {
   const router = useRouter();
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
-  const [pendingStories, setPendingStories] = useState<SuccessStory[]>([]);
-  const [activeTab, setActiveTab] = useState<'posts' | 'reports' | 'stories'>('posts');
+  const [activeTab, setActiveTab] = useState('users');
+  const [users, setUsers] = useState([] as User[]);
+  const [posts, setPosts] = useState([] as Post[]);
+  const [reports, setReports] = useState([] as Report[]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     checkAdmin();
-  }, [user]);
+    fetchData();
+  }, [activeTab]);
 
   const checkAdmin = async () => {
     if (!user) return;
-
     const { data } = await supabase
       .from('users')
-      .select('is_admin')
+      .select('role')
       .eq('id', user.id)
       .single();
 
-    if (data?.is_admin || user.email?.includes('admin')) {
-      setIsAdmin(true);
-      fetchAdminData();
-    } else {
+    if (data?.role !== 'admin') {
       router.push('/home');
     }
   };
 
-  const fetchAdminData = async () => {
+  const fetchData = async () => {
     setLoading(true);
 
-    const { data: postsData } = await supabase
-      .from('posts')
-      .select('*, user:users(first_name, last_initial)')
-      .order('created_at', { ascending: false });
-
-    const { data: reportsData } = await supabase
-      .from('reports')
-      .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false });
-
-    const { data: storiesData } = await supabase
-      .from('success_stories')
-      .select('*, user:users(first_name, last_initial)')
-      .eq('approved', false)
-      .order('created_at', { ascending: false });
-
-    if (postsData) setPosts(postsData as Post[]);
-    if (reportsData) setReports(reportsData as Report[]);
-    if (storiesData) setPendingStories(storiesData as SuccessStory[]);
+    if (activeTab === 'users') {
+      const { data } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_initial, created_at, status')
+        .order('created_at', { ascending: false });
+      setUsers(data || []);
+    } else if (activeTab === 'posts') {
+      const { data } = await supabase
+        .from('posts')
+        .select('id, location_name, city, state, description, created_at, user_id, status')
+        .order('created_at', { ascending: false });
+      setPosts(data || []);
+    } else if (activeTab === 'reports') {
+      const { data } = await supabase
+        .from('bug_reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setReports(data || []);
+    }
 
     setLoading(false);
   };
 
-  const handleRemovePost = async (postId: string) => {
-    await supabase.from('posts').update({ status: 'removed' }).eq('id', postId);
-    fetchAdminData();
+  const deletePost = async (postId: string) => {
+    await supabase.from('posts').delete().eq('id', postId);
+    fetchData();
   };
 
-  const handleHidePost = async (postId: string) => {
-    await supabase.from('posts').update({ status: 'hidden' }).eq('id', postId);
-    fetchAdminData();
+  const suspendUser = async (userId: string) => {
+    await supabase.from('users').update({ status: 'suspended' }).eq('id', userId);
+    fetchData();
   };
 
-  const handleApproveStory = async (storyId: string) => {
-    await supabase.from('success_stories').update({ approved: true }).eq('id', storyId);
-    fetchAdminData();
+  const banUser = async (userId: string) => {
+    await supabase.from('users').update({ status: 'banned' }).eq('id', userId);
+    fetchData();
   };
 
-  const handleResolveReport = async (reportId: string) => {
-    await supabase.from('reports').update({ status: 'resolved' }).eq('id', reportId);
-    fetchAdminData();
+  const deleteUser = async (userId: string) => {
+    await supabase.from('users').delete().eq('id', userId);
+    fetchData();
   };
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-wf-gold"></div>
-      </div>
-    );
-  }
+  const markReportReviewed = async (reportId: string) => {
+    await supabase.from('bug_reports').update({ status: 'reviewed' }).eq('id', reportId);
+    fetchData();
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  };
 
   return (
     <div className="min-h-screen pb-20">
       <header className="sticky top-0 z-40 bg-wf-black/95 backdrop-blur-md border-b border-wf-gray-light">
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Shield size={20} className="text-wf-gold" />
-            <h1 className="font-serif text-xl text-wf-ivory">Admin Panel</h1>
-          </div>
+        <div className="px-4 py-3 flex items-center gap-3">
+          <button onClick={() => router.push('/home')} className="p-2 hover:bg-wf-gray rounded-lg">
+            <ArrowLeft size={20} className="text-gray-400" />
+          </button>
+          <h1 className="font-serif text-xl text-wf-ivory">Admin Dashboard</h1>
         </div>
       </header>
 
-      <div className="px-4 py-4 space-y-4">
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="wf-card text-center">
-            <div className="text-wf-ivory font-semibold text-xl">{posts.length}</div>
-            <div className="text-gray-500 text-xs">Total Posts</div>
-          </div>
-          <div className="wf-card text-center">
-            <div className="text-red-400 font-semibold text-xl">{reports.length}</div>
-            <div className="text-gray-500 text-xs">Pending Reports</div>
-          </div>
-          <div className="wf-card text-center">
-            <div className="text-wf-gold font-semibold text-xl">{pendingStories.length}</div>
-            <div className="text-gray-500 text-xs">Pending Stories</div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2">
-          {(['posts', 'reports', 'stories'] as const).map((tab) => (
+      {/* Tabs */}
+      <div className="px-4 py-4">
+        <div className="flex gap-2 overflow-x-auto">
+          {[
+            { id: 'users', label: 'Users', icon: Users },
+            { id: 'posts', label: 'Posts', icon: FileText },
+            { id: 'reports', label: 'Reports', icon: Flag },
+          ].map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                activeTab === tab 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                activeTab === tab.id 
                   ? 'bg-wf-gold text-wf-black' 
-                  : 'bg-wf-gray-light text-gray-400'
+                  : 'bg-wf-gray text-gray-400 hover:text-wf-ivory'
               }`}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              <tab.icon size={16} />
+              <span className="text-sm font-medium">{tab.label}</span>
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Content */}
+      {/* Search */}
+      <div className="px-4 pb-4">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <input
+            type="text"
+            placeholder={`Search ${activeTab}...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-wf-gray-light border border-wf-gray rounded-lg pl-10 pr-3 py-2 text-wf-ivory placeholder-gray-600 focus:border-wf-gold focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4">
         {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="wf-card animate-pulse h-24"></div>
-            ))}
+          <div className="text-center py-12">
+            <div className="animate-spin w-8 h-8 border-2 border-wf-gold border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading...</p>
           </div>
         ) : (
           <>
-            {activeTab === 'posts' && posts.map((post) => (
-              <div key={post.id} className="wf-card">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="text-wf-ivory font-medium">{post.location_name}</h3>
-                    <p className="text-gray-500 text-xs">{post.city}, {post.state}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    post.status === 'active' ? 'bg-green-900/30 text-green-400' :
-                    post.status === 'hidden' ? 'bg-yellow-900/30 text-yellow-400' :
-                    'bg-red-900/30 text-red-400'
-                  }`}>
-                    {post.status}
-                  </span>
-                </div>
-                <p className="text-gray-400 text-sm mb-3 line-clamp-2">{post.description}</p>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleHidePost(post.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-yellow-900/30 text-yellow-400 rounded-lg text-xs hover:bg-yellow-900/50 transition-colors"
-                  >
-                    <EyeOff size={12} /> Hide
-                  </button>
-                  <button 
-                    onClick={() => handleRemovePost(post.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-red-900/30 text-red-400 rounded-lg text-xs hover:bg-red-900/50 transition-colors"
-                  >
-                    <Trash2 size={12} /> Remove
-                  </button>
-                </div>
+            {activeTab === 'users' && (
+              <div className="space-y-3">
+                {users.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No users found</p>
+                ) : (
+                  users.map((u) => (
+                    <div key={u.id} className="wf-card space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-wf-ivory font-medium">{u.first_name} {u.last_initial}.</p>
+                          <p className="text-gray-500 text-sm">{u.email}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          u.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                          u.status === 'suspended' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {u.status}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => suspendUser(u.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-400 text-xs hover:bg-yellow-500/30">
+                          <Shield size={12} /> Suspend
+                        </button>
+                        <button onClick={() => banUser(u.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs hover:bg-red-500/30">
+                          <UserX size={12} /> Ban
+                        </button>
+                        <button onClick={() => deleteUser(u.id)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs hover:bg-red-500/30">
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                      <p className="text-gray-600 text-xs">Joined {formatDate(u.created_at)}</p>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
+            )}
 
-            {activeTab === 'reports' && reports.map((report) => (
-              <div key={report.id} className="wf-card">
-                <div className="flex items-start gap-2 mb-2">
-                  <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-wf-ivory font-medium text-sm">Report #{report.id.slice(0, 8)}</h3>
-                    <p className="text-gray-500 text-xs">Reason: {report.reason}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => handleResolveReport(report.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-green-900/30 text-green-400 rounded-lg text-xs hover:bg-green-900/50 transition-colors"
-                >
-                  <CheckCircle size={12} /> Resolve
-                </button>
+            {activeTab === 'posts' && (
+              <div className="space-y-3">
+                {posts.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No posts found</p>
+                ) : (
+                  posts.map((p) => (
+                    <div key={p.id} className="wf-card space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-wf-ivory font-medium">{p.location_name}</p>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          p.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                        }`}>
+                          {p.status}
+                        </span>
+                      </div>
+                      <p className="text-gray-400 text-sm">{p.city}, {p.state}</p>
+                      <p className="text-gray-300 text-sm line-clamp-2">"{p.description}"</p>
+                      <div className="flex items-center justify-between pt-2">
+                        <p className="text-gray-600 text-xs">{formatDate(p.created_at)}</p>
+                        <button onClick={() => deletePost(p.id)} className="flex items-center gap-1 text-red-400 text-xs hover:text-red-300">
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
+            )}
 
-            {activeTab === 'stories' && pendingStories.map((story) => (
-              <div key={story.id} className="wf-card">
-                <h3 className="text-wf-ivory font-medium mb-1">{story.title}</h3>
-                <p className="text-gray-400 text-sm mb-2 line-clamp-2">{story.story}</p>
-                <p className="text-gray-500 text-xs mb-3">{story.city}, {story.state}</p>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleApproveStory(story.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-green-900/30 text-green-400 rounded-lg text-xs hover:bg-green-900/50 transition-colors"
-                  >
-                    <CheckCircle size={12} /> Approve
-                  </button>
-                  <button 
-                    className="flex items-center gap-1 px-3 py-1.5 bg-red-900/30 text-red-400 rounded-lg text-xs hover:bg-red-900/50 transition-colors"
-                  >
-                    <XCircle size={12} /> Reject
-                  </button>
-                </div>
+            {activeTab === 'reports' && (
+              <div className="space-y-3">
+                {reports.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No reports found</p>
+                ) : (
+                  reports.map((r) => (
+                    <div key={r.id} className="wf-card space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Flag size={14} className="text-wf-gold" />
+                          <p className="text-wf-ivory text-sm font-medium">{r.subject}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          r.status === 'open' ? 'bg-yellow-500/20 text-yellow-400' :
+                          r.status === 'reviewed' ? 'bg-blue-500/20 text-blue-400' :
+                          'bg-green-500/20 text-green-400'
+                        }`}>
+                          {r.status}
+                        </span>
+                      </div>
+                      <p className="text-gray-400 text-sm">{r.description}</p>
+                      <div className="flex items-center justify-between pt-2">
+                        <div className="text-gray-600 text-xs">
+                          <span className="capitalize">{r.type}</span> • {formatDate(r.created_at)}
+                          {r.email && ` • ${r.email}`}
+                        </div>
+                        {r.status === 'open' && (
+                          <button onClick={() => markReportReviewed(r.id)} className="flex items-center gap-1 text-blue-400 text-xs hover:text-blue-300">
+                            <CheckCircle size={12} /> Mark Reviewed
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
+            )}
           </>
         )}
       </div>
