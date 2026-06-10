@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/AuthProvider';
-import { ArrowLeft, HelpCircle, MessageSquare, Bug, FileText, ChevronDown, ChevronUp, Mail, X, Send } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Bug, FileText, ChevronDown, ChevronUp, Mail, X, Send, Smartphone } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
 const faqs = [
@@ -14,7 +14,7 @@ const faqs = [
   },
   {
     question: 'Who can see my posts?',
-    answer: 'Your posts are public and visible to all users. We are working on privacy settings for a future release.',
+    answer: 'Your posts are public and visible to all users. Use Profile Visibility settings to hide your full details.',
   },
   {
     question: 'How do I delete my account?',
@@ -27,6 +27,10 @@ const faqs = [
   {
     question: 'How do I report someone?',
     answer: 'Tap the flag icon on any post or reply to submit a report. Our moderation team reviews all reports within 24 hours.',
+  },
+  {
+    question: 'Is phone verification available?',
+    answer: 'Phone Verification Coming Soon.',
   },
 ];
 
@@ -62,14 +66,12 @@ export default function HelpPage() {
   const { user } = useAuth();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showGuidelines, setShowGuidelines] = useState(false);
-  
-  // Report modal
+
   const [showReport, setShowReport] = useState(false);
   const [reportForm, setReportForm] = useState({ subject: '', description: '', email: '' });
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportSent, setReportSent] = useState(false);
-  
-  // Contact form
+
   const [contactForm, setContactForm] = useState({ subject: '', message: '' });
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactSent, setContactSent] = useState(false);
@@ -77,9 +79,9 @@ export default function HelpPage() {
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reportForm.subject.trim() || !reportForm.description.trim()) return;
-    
+
     setReportSubmitting(true);
-    
+
     const { error } = await supabase.from('bug_reports').insert({
       user_id: user?.id || null,
       subject: reportForm.subject.trim(),
@@ -90,7 +92,7 @@ export default function HelpPage() {
     });
 
     setReportSubmitting(false);
-    
+
     if (!error) {
       setReportSent(true);
       setReportForm({ subject: '', description: '', email: '' });
@@ -104,9 +106,9 @@ export default function HelpPage() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactForm.subject.trim() || !contactForm.message.trim()) return;
-    
+
     setContactSubmitting(true);
-    
+
     const { error } = await supabase.from('bug_reports').insert({
       user_id: user?.id || null,
       subject: contactForm.subject.trim(),
@@ -117,7 +119,7 @@ export default function HelpPage() {
     });
 
     setContactSubmitting(false);
-    
+
     if (!error) {
       setContactSent(true);
       setContactForm({ subject: '', message: '' });
@@ -182,7 +184,7 @@ export default function HelpPage() {
               <div className="text-center py-4">
                 <MessageSquare size={32} className="text-green-400 mx-auto mb-2" />
                 <p className="text-green-400 font-medium">Message sent!</p>
-                <p className="text-gray-500 text-sm">We'll get back to you soon.</p>
+                <p className="text-gray-500 text-sm">We will get back to you soon at support@whatifcity.com</p>
               </div>
             ) : (
               <form onSubmit={handleContactSubmit} className="space-y-3">
@@ -219,13 +221,20 @@ export default function HelpPage() {
         </div>
 
         {/* Email fallback */}
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <a
-            href="mailto:support@whatifapp.com"
+            href="mailto:support@whatifcity.com"
             className="inline-flex items-center gap-2 text-gray-400 text-sm hover:text-wf-gold transition-colors"
           >
             <Mail size={14} />
-            support@whatifapp.com
+            support@whatifcity.com
+          </a>
+          <a
+            href="mailto:reports@whatifcity.com"
+            className="inline-flex items-center gap-2 text-gray-400 text-sm hover:text-wf-gold transition-colors"
+          >
+            <Mail size={14} />
+            reports@whatifcity.com
           </a>
         </div>
       </div>
@@ -256,7 +265,7 @@ export default function HelpPage() {
               ))}
               <div className="pt-2 border-t border-wf-gray-light">
                 <p className="text-gray-500 text-xs text-center">
-                  Violations may result in warnings, temporary suspension, or permanent account removal.
+                  Violations may result in warnings, temporary suspension, or permanent account removal. Report issues to reports@whatifcity.com
                 </p>
               </div>
             </div>
@@ -286,7 +295,7 @@ export default function HelpPage() {
                 <div className="text-center py-8">
                   <MessageSquare size={40} className="text-green-400 mx-auto mb-3" />
                   <p className="text-green-400 font-medium text-lg">Report submitted!</p>
-                  <p className="text-gray-500 text-sm mt-1">Thanks for helping keep our community safe.</p>
+                  <p className="text-gray-500 text-sm mt-1">We will review and respond via email if provided.</p>
                 </div>
               ) : (
                 <form onSubmit={handleReportSubmit} className="space-y-4">
