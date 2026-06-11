@@ -474,10 +474,10 @@ export default function LandingPage() {
           <Logo />
           <h1 className="hero-title serif">WHAT IF?</h1>
           <p className="hero-sub">The connection you almost made.</p>
-          <Link href="/signup" className="btn-primary">
+          <Link href="/auth/signup" className="btn-primary">
             Create Account — It&rsquo;s Free
           </Link>
-          <Link href="/login" className="btn-secondary" style={{ marginTop: "0.75rem" }}>
+          <Link href="/auth/login" className="btn-secondary" style={{ marginTop: "0.75rem" }}>
             Log In
           </Link>
         </div>
